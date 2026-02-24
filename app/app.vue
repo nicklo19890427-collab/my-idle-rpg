@@ -12,7 +12,7 @@
           <div class="flex items-center gap-3">
             <div
               class="bg-indigo-900 border border-indigo-500 rounded-full h-11 w-11 flex items-center justify-center font-bold text-lg shadow-sm shadow-indigo-500/50">
-              12
+              {{ gameStore.player.level }}
             </div>
             <div class="flex flex-col">
               <span class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Hero</span>
@@ -26,13 +26,13 @@
             <div class="bg-slate-800/80 rounded-full pl-2 pr-3 py-1 flex items-center gap-2 border border-slate-700/50">
               <span
                 class="bg-amber-500/20 text-amber-400 rounded-full w-6 h-6 flex items-center justify-center text-xs">🪙</span>
-              <span class="font-mono font-medium text-amber-50 text-sm">1,450</span>
+              <span class="font-mono font-medium text-amber-50 text-sm">{{ gameStore.player.gold }}</span>
             </div>
             <!-- Gems -->
             <div class="bg-slate-800/80 rounded-full pl-2 pr-3 py-1 flex items-center gap-2 border border-slate-700/50">
               <span
                 class="bg-emerald-500/20 text-emerald-400 rounded-full w-6 h-6 flex items-center justify-center text-xs">💎</span>
-              <span class="font-mono font-medium text-emerald-50 text-sm">25</span>
+              <span class="font-mono font-medium text-emerald-50 text-sm">{{ gameStore.player.diamonds }}</span>
             </div>
           </div>
         </div>
@@ -40,13 +40,16 @@
         <!-- Experience Bar -->
         <div class="px-4 pb-3">
           <div class="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-700 relative">
-            <div class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 w-[65%] rounded-full relative">
+            <div
+              :style="{ width: `${Math.min(100, (gameStore.player.currentExp / gameStore.player.requiredExp) * 100)}%` }"
+              class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full relative transition-all duration-300">
               <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
             </div>
           </div>
           <div class="flex justify-between mt-1 px-1">
             <span class="text-[10px] text-slate-500 font-medium">EXP</span>
-            <span class="text-[10px] text-slate-400 font-mono">6,500 / 10,000</span>
+            <span class="text-[10px] text-slate-400 font-mono">{{ gameStore.player.currentExp }} / {{
+              gameStore.player.requiredExp }}</span>
           </div>
         </div>
       </header>
@@ -81,11 +84,14 @@
             </svg>
 
             <!-- Enemy Health Bar (Absolute positioned) -->
-            <div class="absolute -bottom-6 w-full px-4">
-              <div class="text-center text-xs font-bold text-rose-400 mb-1 drop-shadow-md tracking-wider">Shadow Slime
+            <div class="absolute -bottom-6 w-full px-4" v-if="gameStore.currentMonster">
+              <div class="text-center text-xs font-bold text-rose-400 mb-1 drop-shadow-md tracking-wider">
+                {{ gameStore.currentMonster.name }}
               </div>
               <div class="h-1.5 w-full bg-slate-900 rounded-full border border-slate-700/50 overflow-hidden relative">
-                <div class="h-full bg-rose-500 w-[78%] rounded-full relative">
+                <div
+                  :style="{ width: `${Math.max(0, (gameStore.currentMonster.hp / gameStore.currentMonster.maxHp) * 100)}%` }"
+                  class="h-full bg-rose-500 rounded-full relative transition-all duration-300">
                   <div class="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent"></div>
                 </div>
               </div>
@@ -106,29 +112,30 @@
               </svg>
               Battle Log
             </span>
-            <span
-              class="text-[10px] text-slate-500 flex items-center gap-1.5 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Auto-Battle Active
-            </span>
+            <button @click="gameStore.toggleAutoBattle()"
+              class="text-[10px] text-slate-500 flex items-center gap-1.5 bg-slate-900 px-2 py-0.5 rounded-full border border-slate-800 active:scale-95 transition-transform">
+              <span class="w-1.5 h-1.5 rounded-full"
+                :class="gameStore.isAutoBattling ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
+              {{ gameStore.isAutoBattling ? 'Auto-Battle Active' : 'Auto-Battle Off' }}
+            </button>
           </div>
 
           <!-- Combat Texts -->
           <div class="space-y-1.5 font-mono text-xs flex-1">
-            <p class="text-slate-300"><span class="text-slate-600">[10:45:10]</span> You strike for <span
-                class="text-rose-400 font-semibold">45</span> damage!</p>
-            <p class="text-slate-300"><span class="text-slate-600">[10:45:12]</span> Shadow Slime hits you for <span
-                class="text-orange-400 font-semibold">12</span> damage!</p>
-            <p class="text-slate-300"><span class="text-slate-600">[10:45:16]</span> You cast <span
-                class="text-indigo-400 font-bold">Frost Strike</span>! Critical hit <span
-                class="text-rose-400 font-bold">120</span> damage!</p>
-            <div
-              class="mt-2 mb-2 p-2 bg-amber-900/20 border border-amber-500/20 rounded text-amber-300 font-medium w-full shadow-inner">
-              <p><span class="text-amber-500/50 mr-1">[10:45:17]</span> Defeated Shadow Slime!</p>
-              <p class="text-[10px] mt-0.5 pl-14 tracking-wide">+5 Gold, +15 EXP</p>
-            </div>
-            <p class="text-emerald-400/80"><span class="text-slate-600">[10:45:20]</span> Entering Floor 2...</p>
-            <p class="text-slate-400/60 flex items-center gap-2 mt-4 text-[10px]"><span class="animate-pulse">Loading
-                next enemy</span>...</p>
+            <template v-for="log in gameStore.logs" :key="log.id">
+              <div v-if="log.type === 'reward'"
+                class="mt-2 mb-2 p-2 bg-amber-900/20 border border-amber-500/20 rounded text-amber-300 font-medium w-full shadow-inner">
+                <p><span class="text-amber-500/50 mr-1">[{{ log.timestamp }}]</span> {{ log.message }}</p>
+              </div>
+              <p v-else :class="{
+                'text-slate-300': log.type === 'attack' || log.type === 'system',
+                'text-rose-400': log.type === 'damage',
+                'text-indigo-400 font-bold': log.type === 'critical',
+                'text-emerald-400': log.type === 'heal'
+              }">
+                <span class="text-slate-600">[{{ log.timestamp }}]</span> {{ log.message }}
+              </p>
+            </template>
           </div>
         </div>
       </main>
@@ -140,9 +147,10 @@
 
           <!-- Battle (Active state) -->
           <li>
-            <button class="flex flex-col items-center justify-center p-2 w-16 group outline-none">
+            <button @click="gameStore.attackMonster()"
+              class="flex flex-col items-center justify-center p-2 w-16 group outline-none">
               <div
-                class="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 transition-colors border border-indigo-500/30">
+                class="relative flex items-center justify-center w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 active:bg-indigo-500/40 transition-colors border border-indigo-500/30">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24"
                   stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -154,7 +162,7 @@
                     class="relative inline-flex rounded-full h-3 w-3 bg-indigo-500 border-2 border-slate-900"></span>
                 </div>
               </div>
-              <span class="mt-1 text-[10px] font-bold text-indigo-400 tracking-wide">BATTLE</span>
+              <span class="mt-1 text-[10px] font-bold text-indigo-400 tracking-wide">ATTACK</span>
             </button>
           </li>
 
@@ -231,5 +239,11 @@
 </template>
 
 <script setup lang="ts">
-// Skeleton template established. Logic will be wired up in later iterations.
+import { useGameStore } from '~/stores/gameStore'
+
+const gameStore = useGameStore()
+
+onMounted(() => {
+  gameStore.initGame()
+})
 </script>
