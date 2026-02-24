@@ -24,5 +24,8 @@ A fantasy-themed idle/incremental mobile game developed with Nuxt 4, designed to
 
 ## Current Status
 
-- Project initialized.
-- Transitioning to the Data Structure (Types) and Core Game Loop design phase.
+- Alpha v0.5.0 - Core Gameplay Loop & Progression Implemented.
+  - Component-Based Architecture: Fully refactored into modular Vue components (`GameHeader`, `CombatStage`, `BattleLog`, `HeroView`, `BottomNav`) for better maintainability.
+  - Auto-Battle System: Implemented a recurring game loop with visual combat feedback (shake effects and floating damage numbers).
+  - Hero Upgrade System: A functional "Hero" tab allowing players to spend Gold to increase Attack and Defense stats.
+  - Stage Progression & Scaling: Implemented a stage-based system where monster difficulty and rewards scale exponentially as players progress through stages.

@@ -19,6 +19,7 @@ export interface Monster {
   attack: number;
   expReward: number;
   goldReward: number;
+  isBoss?: boolean;
 }
 
 export interface GameLog {

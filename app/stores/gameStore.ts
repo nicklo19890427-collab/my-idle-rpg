@@ -16,22 +16,41 @@ export const useGameStore = defineStore('game', () => {
     critRate: 0.1, // 10%
   })
 
-  const currentMonster = ref<Monster | null>({
-    id: 'm1',
-    name: 'Shadow Slime',
-    hp: 20,
-    maxHp: 20,
-    attack: 2,
-    expReward: 15,
-    goldReward: 5,
-  })
+  const currentMonster = ref<Monster | null>(null)
 
   const logs = ref<GameLog[]>([])
   let logIdCounter = 0
 
   const isAutoBattling = ref(false)
+  const currentTab = ref<'battle' | 'hero' | 'items' | 'skills' | 'settings'>('battle')
+  
+  // Stage Progression
+  const currentStage = ref(1)
+  const killsInCurrentStage = ref(0)
+  const requiredKillsPerStage = ref(10)
+
+  // Computed
+  const attackUpgradeCost = computed(() => {
+    // Base cost 100, scales based on how many upgrades we've done (inferred from attack value for simplicity now)
+    const upgradeCount = Math.floor((player.value.attack - 10) / 2) // Assuming base 10, +2 per upgrade
+    return Math.floor(100 * Math.pow(1.15, Math.max(0, upgradeCount)))
+  })
 
   // Actions
+  const setTab = (tab: typeof currentTab.value) => {
+    currentTab.value = tab
+  }
+
+  const upgradeAttack = () => {
+    if (player.value.gold >= attackUpgradeCost.value) {
+      player.value.gold -= attackUpgradeCost.value
+      player.value.attack += 2 // Give +2 ATK per upgrade
+      addLog(`Upgraded ATK to ${player.value.attack}!`, 'system')
+    } else {
+      addLog('Not enough gold to upgrade ATK!', 'system')
+    }
+  }
+
   const addLog = (message: string, type: GameLog['type'] = 'system') => {
     const now = new Date()
     const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
@@ -75,17 +94,41 @@ export const useGameStore = defineStore('game', () => {
   }
 
   const respawnMonster = () => {
-    // In a real game, this would select from a pool of monsters based on current stage/level
+    // Scaling formulas
+    // HP = BaseHP * (1.15 ^ (Stage - 1))
+    // Attack = BaseAttack * (1.1 ^ (Stage - 1))
+    
+    // Determine if next monster should be a boss (every 10th stage, on the final kill)
+    const isBossStage = currentStage.value % 10 === 0
+    const isBossEncounter = isBossStage && killsInCurrentStage.value === requiredKillsPerStage.value - 1
+    
+    const stageMultiplierHp = Math.pow(1.15, currentStage.value - 1)
+    const stageMultiplierAtk = Math.pow(1.1, currentStage.value - 1)
+    
+    const baseHp = isBossEncounter ? 100 : 20
+    const baseAtk = isBossEncounter ? 10 : 2
+    
+    const calculatedHp = Math.floor(baseHp * stageMultiplierHp)
+    const calculatedAtk = Math.floor(baseAtk * stageMultiplierAtk)
+    
+    const name = isBossEncounter ? 'Shadow Demon King' : 'Shadow Slime'
+
     currentMonster.value = {
       id: `m_${Date.now()}`,
-      name: 'Shadow Slime',
-      hp: 20 + (player.value.level * 5),
-      maxHp: 20 + (player.value.level * 5),
-      attack: 2 + Math.floor(player.value.level / 2),
-      expReward: 15 + player.value.level * 2,
-      goldReward: 5 + player.value.level,
+      name,
+      hp: calculatedHp,
+      maxHp: calculatedHp,
+      attack: calculatedAtk,
+      expReward: Math.floor((15 + player.value.level * 2) * stageMultiplierHp * (isBossEncounter ? 5 : 1)),
+      goldReward: Math.floor((5 + player.value.level) * stageMultiplierHp * (isBossEncounter ? 5 : 1)),
+      isBoss: isBossEncounter
     }
-    addLog(`A wild ${currentMonster.value.name} appeared!`, 'system')
+    
+    if (isBossEncounter) {
+      addLog(`WARNING: A terrifying ${currentMonster.value.name} blocks your path!`, 'system')
+    } else {
+      addLog(`A wild ${currentMonster.value.name} appeared!`, 'system')
+    }
   }
 
   const attackMonster = () => {
@@ -103,6 +146,15 @@ export const useGameStore = defineStore('game', () => {
       addLog(`+${currentMonster.value.goldReward} Gold, +${currentMonster.value.expReward} EXP`, 'reward')
       gainGold(currentMonster.value.goldReward)
       gainExp(currentMonster.value.expReward)
+      
+      // Handle stage progression
+      killsInCurrentStage.value++
+      
+      if (killsInCurrentStage.value >= requiredKillsPerStage.value) {
+        killsInCurrentStage.value = 0
+        currentStage.value++
+        addLog(`== Stage Cleared! Entering Stage ${currentStage.value}... ==`, 'reward')
+      }
       
       // Delay before next monster appears
       setTimeout(() => {
@@ -130,36 +182,11 @@ export const useGameStore = defineStore('game', () => {
     }
   }
 
-  // Simple auto-battle loop hook (could be managed better using requestAnimationFrame or reliable setInterval)
-  let battleTimer: ReturnType<typeof setInterval> | null = null
-  
-  const toggleAutoBattle = () => {
-    isAutoBattling.value = !isAutoBattling.value
-    
-    if (isAutoBattling.value) {
-      addLog('Auto-Battle Active', 'system')
-      battleTimer = setInterval(() => {
-        if (!currentMonster.value || currentMonster.value.hp <= 0) return
-        
-        attackMonster()
-        
-        // Let the monster attack back if still alive
-        if (currentMonster.value && currentMonster.value.hp > 0) {
-          setTimeout(() => {
-            takeDamage()
-          }, 500)
-        }
-      }, 1500) // Attack every 1.5s
-    } else {
-      addLog('Auto-Battle Paused', 'system')
-      if (battleTimer) clearInterval(battleTimer)
-    }
-  }
-
   // Basic startup initialization
   const initGame = () => {
     if (logs.value.length === 0) {
       addLog('Welcome to My Idle RPG!', 'system')
+      killsInCurrentStage.value = 0
       respawnMonster()
     }
   }
@@ -169,13 +196,19 @@ export const useGameStore = defineStore('game', () => {
     currentMonster,
     logs,
     isAutoBattling,
+    currentTab,
+    currentStage,
+    killsInCurrentStage,
+    requiredKillsPerStage,
+    attackUpgradeCost,
     addLog,
     attackMonster,
     takeDamage,
     gainExp,
     gainGold,
     respawnMonster,
-    toggleAutoBattle,
-    initGame
+    initGame,
+    setTab,
+    upgradeAttack
   }
 })
